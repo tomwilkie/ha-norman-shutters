@@ -1,0 +1,26 @@
+{
+  "config": {
+    "flow_title": "Norman Shutters",
+    "step": {
+      "user": {
+        "title": "Connect to Norman Hub",
+        "description": "Enter the IP address of your Norman Hub on the local network.",
+        "data": {
+          "host": "Hub IP address"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "Norman Hub discovered",
+        "description": "Found a Norman Hub at `{host}`. Do you want to add it?"
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to the Norman Hub. Check the IP address and try again.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This Norman Hub is already configured.",
+      "no_devices_found": "No Norman Hub found on the network."
+    }
+  }
+}
