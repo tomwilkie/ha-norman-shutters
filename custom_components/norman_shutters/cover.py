@@ -11,8 +11,8 @@ from homeassistant.components.cover import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-
 from pynormanshutters import FULLY_OPEN_POSITION
+
 from .const import DOMAIN
 from .coordinator import NormanCoordinator
 from .entity import NormanEntity
@@ -26,9 +26,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: NormanCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        NormanCover(coordinator, window_id) for window_id in coordinator.data
-    )
+    async_add_entities(NormanCover(coordinator, window_id) for window_id in coordinator.data)
 
 
 class NormanCover(NormanEntity, CoverEntity):
@@ -41,9 +39,7 @@ class NormanCover(NormanEntity, CoverEntity):
 
     _attr_device_class = CoverDeviceClass.SHUTTER
     _attr_supported_features = (
-        CoverEntityFeature.OPEN
-        | CoverEntityFeature.CLOSE
-        | CoverEntityFeature.SET_TILT_POSITION
+        CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.SET_TILT_POSITION
     )
 
     def __init__(self, coordinator: NormanCoordinator, window_id: str) -> None:
