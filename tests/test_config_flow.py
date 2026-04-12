@@ -1,0 +1,80 @@
+from unittest.mock import AsyncMock, MagicMock
+
+from custom_components.norman_shutters.const import CONF_HOST
+
+
+def make_discovery(name, host):
+    info = MagicMock()
+    info.name = name
+    info.host = host
+    return info
+
+
+# ---------------------------------------------------------------------------
+# async_step_zeroconf
+# ---------------------------------------------------------------------------
+
+
+async def test_zeroconf_sets_host_and_unique_id(config_flow):
+    discovery = make_discovery("NORMANHUB_AABBCC._http._tcp.local.", "192.168.1.10")
+    await config_flow.async_step_zeroconf(discovery)
+
+    assert config_flow._host == "192.168.1.10"
+    assert config_flow._unique_id == "AABBCC"
+
+
+async def test_zeroconf_returns_form(config_flow):
+    discovery = make_discovery("NORMANHUB_AABBCC._http._tcp.local.", "192.168.1.10")
+    result = await config_flow.async_step_zeroconf(discovery)
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "zeroconf_confirm"
+
+
+# ---------------------------------------------------------------------------
+# async_step_zeroconf_confirm
+# ---------------------------------------------------------------------------
+
+
+async def test_zeroconf_confirm_no_input_shows_form(config_flow):
+    config_flow._host = "192.168.1.10"
+    result = await config_flow.async_step_zeroconf_confirm(None)
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "zeroconf_confirm"
+
+
+async def test_zeroconf_confirm_with_input_creates_entry(config_flow):
+    config_flow._host = "192.168.1.10"
+    result = await config_flow.async_step_zeroconf_confirm({})
+
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_HOST] == "192.168.1.10"
+
+
+# ---------------------------------------------------------------------------
+# async_step_user
+# ---------------------------------------------------------------------------
+
+
+async def test_user_step_no_input_shows_form(config_flow):
+    result = await config_flow.async_step_user(None)
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "user"
+
+
+async def test_user_step_connection_failure(config_flow):
+    config_flow.hass.async_add_executor_job.side_effect = Exception("cannot connect")
+    result = await config_flow.async_step_user({CONF_HOST: "192.168.1.100"})
+
+    assert result["type"] == "form"
+    assert result["errors"]["base"] == "cannot_connect"
+
+
+async def test_user_step_success(config_flow):
+    config_flow.hass.async_add_executor_job = AsyncMock(return_value=MagicMock())
+    result = await config_flow.async_step_user({CONF_HOST: "192.168.1.100"})
+
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_HOST] == "192.168.1.100"

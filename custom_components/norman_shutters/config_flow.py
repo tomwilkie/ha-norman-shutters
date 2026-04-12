@@ -7,8 +7,8 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.components.zeroconf import ZeroconfServiceInfo
 from homeassistant.data_entry_flow import FlowResult
-
 from pynormanshutters.main import login
+
 from .const import CONF_HOST, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,9 +29,7 @@ class NormanShuttersConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     # Manual setup (user-initiated from Integrations UI)
     # ------------------------------------------------------------------
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -59,9 +57,7 @@ class NormanShuttersConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     # Zeroconf auto-discovery
     # ------------------------------------------------------------------
 
-    async def async_step_zeroconf(
-        self, discovery_info: ZeroconfServiceInfo
-    ) -> FlowResult:
+    async def async_step_zeroconf(self, discovery_info: ZeroconfServiceInfo) -> FlowResult:
         """Handle discovery of a Norman Hub via mDNS."""
         self._host = discovery_info.host
 
