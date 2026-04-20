@@ -110,12 +110,14 @@ sys.modules.update(
             SensorDeviceClass=_SensorDeviceClass,
             SensorStateClass=_SensorStateClass,
         ),
-        "homeassistant.components.zeroconf": _mod(
-            "homeassistant.components.zeroconf",
-            ZeroconfServiceInfo=MagicMock,
-        ),
+        "homeassistant.components.zeroconf": _mod("homeassistant.components.zeroconf"),
         "homeassistant.const": _mod("homeassistant.const", PERCENTAGE="%"),
         "homeassistant.helpers": _mod("homeassistant.helpers"),
+        "homeassistant.helpers.service_info": _mod("homeassistant.helpers.service_info"),
+        "homeassistant.helpers.service_info.zeroconf": _mod(
+            "homeassistant.helpers.service_info.zeroconf",
+            ZeroconfServiceInfo=MagicMock,
+        ),
         "homeassistant.helpers.update_coordinator": _mod(
             "homeassistant.helpers.update_coordinator",
             DataUpdateCoordinator=FakeDataUpdateCoordinator,
@@ -139,7 +141,6 @@ sys.modules.update(
             login=_login_mock,
             FULLY_OPEN_POSITION=100,
         ),
-        "pynormanshutters.main": _mod("pynormanshutters.main", login=_login_mock),
         "voluptuous": _mod("voluptuous", Schema=MagicMock(), Required=MagicMock()),
     }
 )
