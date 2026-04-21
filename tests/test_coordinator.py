@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -93,3 +93,84 @@ async def test_update_data_raises_update_failed(fake_coordinator):
 
     with pytest.raises(Exception, match="Error communicating"):
         await fake_coordinator._async_update_data()
+
+
+# ---------------------------------------------------------------------------
+# async_request_aggressive_refresh — backoff scheduling
+# ---------------------------------------------------------------------------
+
+
+def _make_coordinator(fake_hass, scan_interval: int) -> NormanCoordinator:
+    coordinator = NormanCoordinator(fake_hass, "192.168.1.100", scan_interval)
+    coordinator.client = MagicMock()
+    coordinator.async_request_refresh = AsyncMock()
+    return coordinator
+
+
+async def test_aggressive_refresh_calls_immediate_refresh(fake_hass):
+    """Immediate async_request_refresh is always called."""
+    coordinator = _make_coordinator(fake_hass, scan_interval=60)
+    with patch(
+        "custom_components.norman_shutters.coordinator.async_call_later",
+        return_value=MagicMock(),
+    ):
+        await coordinator.async_request_aggressive_refresh()
+    coordinator.async_request_refresh.assert_called_once()
+
+
+async def test_aggressive_refresh_schedules_backoff_delays(fake_hass):
+    """With scan_interval=60, backoff polls scheduled at cumulative delays 2, 6, 14, 30."""
+    coordinator = _make_coordinator(fake_hass, scan_interval=60)
+    with patch(
+        "custom_components.norman_shutters.coordinator.async_call_later",
+        return_value=MagicMock(),
+    ) as mock_call_later:
+        await coordinator.async_request_aggressive_refresh()
+
+    delays = [c.args[1] for c in mock_call_later.call_args_list]
+    assert delays == [2, 6, 14, 30]
+
+
+async def test_aggressive_refresh_no_extra_polls_when_scan_interval_tiny(fake_hass):
+    """With scan_interval=2, the initial backoff delay equals scan_interval — no polls scheduled."""
+    coordinator = _make_coordinator(fake_hass, scan_interval=2)
+    with patch(
+        "custom_components.norman_shutters.coordinator.async_call_later",
+        return_value=MagicMock(),
+    ) as mock_call_later:
+        await coordinator.async_request_aggressive_refresh()
+
+    mock_call_later.assert_not_called()
+
+
+async def test_aggressive_refresh_cancels_previous_sequence(fake_hass):
+    """A second operation cancels all pending callbacks from the first."""
+    coordinator = _make_coordinator(fake_hass, scan_interval=60)
+    first_cancels = [MagicMock() for _ in range(4)]
+    second_cancels = [MagicMock() for _ in range(4)]
+
+    with patch(
+        "custom_components.norman_shutters.coordinator.async_call_later",
+        side_effect=first_cancels + second_cancels,
+    ):
+        await coordinator.async_request_aggressive_refresh()
+        assert len(coordinator._aggressive_poll_unsubs) == 4
+
+        await coordinator.async_request_aggressive_refresh()
+
+    for cancel in first_cancels:
+        cancel.assert_called_once()
+    assert coordinator._aggressive_poll_unsubs == second_cancels
+
+
+async def test_aggressive_refresh_immediate_refresh_called_each_time(fake_hass):
+    """async_request_refresh is called once per aggressive refresh invocation."""
+    coordinator = _make_coordinator(fake_hass, scan_interval=60)
+    with patch(
+        "custom_components.norman_shutters.coordinator.async_call_later",
+        return_value=MagicMock(),
+    ):
+        await coordinator.async_request_aggressive_refresh()
+        await coordinator.async_request_aggressive_refresh()
+
+    assert coordinator.async_request_refresh.call_count == 2

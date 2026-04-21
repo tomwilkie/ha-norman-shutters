@@ -34,6 +34,21 @@ class FakeCoordinatorEntity:
         return cls
 
 
+class FakeOptionsFlow:
+    """Minimal OptionsFlow stub."""
+
+    def __init__(self, config_entry):
+        self._config_entry = config_entry
+
+    def async_show_form(
+        self, *, step_id, data_schema=None, errors=None, description_placeholders=None
+    ):
+        return {"type": "form", "step_id": step_id, "errors": errors or {}}
+
+    def async_create_entry(self, *, title, data):
+        return {"type": "create_entry", "title": title, "data": data}
+
+
 class FakeConfigFlow:
     """Minimal ConfigFlow stub that handles the 'domain=' class keyword."""
 
@@ -87,11 +102,16 @@ _login_mock = MagicMock()
 sys.modules.update(
     {
         "homeassistant": _mod("homeassistant"),
-        "homeassistant.core": _mod("homeassistant.core", HomeAssistant=MagicMock),
+        "homeassistant.core": _mod(
+            "homeassistant.core",
+            HomeAssistant=MagicMock,
+            callback=lambda fn: fn,
+        ),
         "homeassistant.config_entries": _mod(
             "homeassistant.config_entries",
             ConfigEntry=MagicMock,
             ConfigFlow=FakeConfigFlow,
+            OptionsFlow=FakeOptionsFlow,
         ),
         "homeassistant.data_entry_flow": _mod(
             "homeassistant.data_entry_flow",
@@ -132,6 +152,10 @@ sys.modules.update(
             "homeassistant.helpers.entity_platform",
             AddEntitiesCallback=None,
         ),
+        "homeassistant.helpers.event": _mod(
+            "homeassistant.helpers.event",
+            async_call_later=MagicMock(return_value=MagicMock()),
+        ),
         "homeassistant.exceptions": _mod(
             "homeassistant.exceptions",
             ConfigEntryNotReady=Exception,
@@ -139,9 +163,17 @@ sys.modules.update(
         "pynormanshutters": _mod(
             "pynormanshutters",
             login=_login_mock,
-            FULLY_OPEN_POSITION=100,
+            FULLY_OPEN_POSITION=37,
+            FULLY_CLOSED_POSITION=100,
         ),
-        "voluptuous": _mod("voluptuous", Schema=MagicMock(), Required=MagicMock()),
+        "voluptuous": _mod(
+            "voluptuous",
+            Schema=MagicMock(),
+            Required=MagicMock(),
+            Optional=MagicMock(),
+            All=MagicMock(),
+            Range=MagicMock(),
+        ),
     }
 )
 
@@ -167,6 +199,7 @@ def fake_coordinator(fake_hass):
     coordinator = NormanCoordinator(fake_hass, "192.168.1.100")
     coordinator.client = MagicMock()
     coordinator.async_request_refresh = AsyncMock()
+    coordinator.async_request_aggressive_refresh = AsyncMock()
     return coordinator
 
 

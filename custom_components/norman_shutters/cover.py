@@ -11,7 +11,7 @@ from homeassistant.components.cover import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pynormanshutters import FULLY_OPEN_POSITION
+from pynormanshutters import FULLY_CLOSED_POSITION
 
 from .const import DOMAIN
 from .coordinator import NormanCoordinator
@@ -30,17 +30,10 @@ async def async_setup_entry(
 
 
 class NormanCover(NormanEntity, CoverEntity):
-    """Cover entity representing a single Norman plantation shutter.
-
-    These shutters are fixed panels — only the slats rotate. There is no
-    vertical travel. OPEN/CLOSE fully open/close the slats; SET_TILT_POSITION
-    sets a precise angle.
-    """
+    """Cover entity representing a single Norman plantation shutter."""
 
     _attr_device_class = CoverDeviceClass.SHUTTER
-    _attr_supported_features = (
-        CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.SET_TILT_POSITION
-    )
+    _attr_supported_features = CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE
 
     def __init__(self, coordinator: NormanCoordinator, window_id: str) -> None:
         super().__init__(coordinator, window_id)
@@ -55,37 +48,22 @@ class NormanCover(NormanEntity, CoverEntity):
         pos = self._window.get("position")
         if pos is None:
             return None
-        return int(pos) == 0
-
-    @property
-    def current_cover_tilt_position(self) -> int | None:
-        """Slat angle, normalised from 0-FULLY_OPEN_POSITION to 0-100."""
-        raw = self._window.get("position")
-        if raw is None:
-            return None
-        return round(int(raw) * 100 / FULLY_OPEN_POSITION)
+        return int(pos) >= FULLY_CLOSED_POSITION
 
     @property
     def _window_int_id(self) -> int:
         return int(self._window_id)
 
     async def async_open_cover(self, **kwargs: Any) -> None:
+        _LOGGER.debug("open_cover called for window %s", self._window_id)
         await self.hass.async_add_executor_job(
             self.coordinator.client.open_window, self._window_int_id
         )
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_aggressive_refresh()
 
     async def async_close_cover(self, **kwargs: Any) -> None:
+        _LOGGER.debug("close_cover called for window %s", self._window_id)
         await self.hass.async_add_executor_job(
             self.coordinator.client.close_window, self._window_int_id
         )
-        await self.coordinator.async_request_refresh()
-
-    async def async_set_cover_tilt_position(self, **kwargs: Any) -> None:
-        """HA sends 0-100; convert to hub's native 0-FULLY_OPEN_POSITION scale."""
-        tilt_position: int = kwargs["tilt_position"]
-        native = round(tilt_position * FULLY_OPEN_POSITION / 100)
-        await self.hass.async_add_executor_job(
-            self.coordinator.client.set_window_position, self._window_int_id, native
-        )
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_aggressive_refresh()
