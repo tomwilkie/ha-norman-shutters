@@ -15,8 +15,12 @@ class NormanEntity(CoordinatorEntity[NormanCoordinator]):
         self._window_id = window_id
 
     @property
+    def available(self) -> bool:
+        return self._window_id in self.coordinator.data
+
+    @property
     def _window(self) -> dict:
-        return self.coordinator.data[self._window_id]
+        return self.coordinator.data.get(self._window_id, {})
 
     @property
     def device_info(self) -> DeviceInfo:

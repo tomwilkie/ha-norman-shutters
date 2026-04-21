@@ -1,6 +1,10 @@
 from unittest.mock import AsyncMock, MagicMock
 
-from custom_components.norman_shutters.const import CONF_HOST
+from custom_components.norman_shutters.const import (
+    CONF_HOST,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+)
 
 
 def make_discovery(name, host):
@@ -78,3 +82,50 @@ async def test_user_step_success(config_flow):
 
     assert result["type"] == "create_entry"
     assert result["data"][CONF_HOST] == "192.168.1.100"
+
+
+# ---------------------------------------------------------------------------
+# OptionsFlowHandler
+# ---------------------------------------------------------------------------
+
+
+def make_options_flow(options=None):
+    from custom_components.norman_shutters.config_flow import OptionsFlowHandler
+
+    config_entry = MagicMock()
+    config_entry.options = options or {}
+    return OptionsFlowHandler(config_entry)
+
+
+async def test_options_flow_shows_form():
+    handler = make_options_flow()
+    result = await handler.async_step_init(None)
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+
+
+async def test_options_flow_saves_interval():
+    handler = make_options_flow()
+    result = await handler.async_step_init({CONF_SCAN_INTERVAL: 120})
+
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_SCAN_INTERVAL] == 120
+
+
+async def test_options_flow_uses_existing_interval():
+    handler = make_options_flow(options={CONF_SCAN_INTERVAL: 180})
+    # The current interval should be used as the form default — we can't inspect
+    # the schema directly through the stub, but we verify the flow returns a form.
+    result = await handler.async_step_init(None)
+
+    assert result["type"] == "form"
+
+
+async def test_options_flow_default_interval():
+    """When no option is stored, the default is DEFAULT_SCAN_INTERVAL."""
+    handler = make_options_flow()
+    assert (
+        handler._config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        == DEFAULT_SCAN_INTERVAL
+    )

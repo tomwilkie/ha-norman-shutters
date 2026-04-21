@@ -1,27 +1,60 @@
 import logging
 from datetime import timedelta
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from pynormanshutters import login
 
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import AGGRESSIVE_POLL_INITIAL, DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class NormanCoordinator(DataUpdateCoordinator):
-    """Coordinator for Norman Shutters - polls get_window_info every 30s."""
+    """Coordinator for Norman Shutters - polls get_window_info at a configurable interval."""
 
-    def __init__(self, hass: HomeAssistant, host: str) -> None:
+    def __init__(
+        self, hass: HomeAssistant, host: str, scan_interval: int = DEFAULT_SCAN_INTERVAL
+    ) -> None:
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
+            update_interval=timedelta(seconds=scan_interval),
         )
         self.host = host
         self.client = None
+        self._scan_interval = scan_interval
+        self._aggressive_poll_unsubs: list = []
+
+    async def async_request_aggressive_refresh(self) -> None:
+        """Immediate refresh followed by exponential backoff follow-up polls.
+
+        Cancels any in-flight backoff sequence from a previous operation, then
+        fires an immediate poll and schedules additional polls at 2 s, 6 s,
+        14 s, 30 s, … (doubling each step) until the next delay would reach or
+        exceed the configured scan_interval, at which point normal periodic
+        polling takes over.
+        """
+        for unsub in self._aggressive_poll_unsubs:
+            unsub()
+        self._aggressive_poll_unsubs.clear()
+
+        await self.async_request_refresh()
+
+        cumulative = 0
+        delay = AGGRESSIVE_POLL_INITIAL
+        while cumulative + delay < self._scan_interval:
+            cumulative += delay
+            unsub = async_call_later(self.hass, cumulative, self._backoff_refresh_callback)
+            self._aggressive_poll_unsubs.append(unsub)
+            delay *= 2
+
+    @callback
+    def _backoff_refresh_callback(self, _now) -> None:
+        """Fire-and-forget refresh scheduled by the backoff sequence."""
+        self.hass.async_create_task(self.async_request_refresh())
 
     async def _async_setup(self) -> None:
         """Login to the hub. Called once during config entry setup."""

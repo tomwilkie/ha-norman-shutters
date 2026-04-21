@@ -9,17 +9,44 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from pynormanshutters import login
 
-from .const import CONF_HOST, DOMAIN
+from .const import CONF_HOST, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_NAME_PREFIX = "NORMANHUB_"
 
 
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle Norman Shutters options (e.g. poll interval)."""
+
+    def __init__(self, config_entry) -> None:
+        self._config_entry = config_entry
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        current = self._config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_SCAN_INTERVAL, default=current): vol.All(
+                        int, vol.Range(min=5, max=3600)
+                    )
+                }
+            ),
+        )
+
+
 class NormanShuttersConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Norman Shutters."""
 
     VERSION = 1
+
+    @staticmethod
+    def async_get_options_flow(config_entry) -> OptionsFlowHandler:
+        return OptionsFlowHandler(config_entry)
 
     def __init__(self) -> None:
         self._host: str | None = None

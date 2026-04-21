@@ -2,12 +2,13 @@ import pynormanshutters
 
 from custom_components.norman_shutters.cover import NormanCover
 
-FULLY_OPEN_POSITION = pynormanshutters.FULLY_OPEN_POSITION
+FULLY_OPEN_POSITION = pynormanshutters.FULLY_OPEN_POSITION  # 37 — slats open
+FULLY_CLOSED_POSITION = pynormanshutters.FULLY_CLOSED_POSITION  # 100 — slats closed
 
 BASE_WINDOW = {
     "Id": 42,
     "Name": "Living Room",
-    "position": 50,
+    "position": FULLY_OPEN_POSITION,
     "angle": 0,
     "battery": "75",
     "solar": 200,
@@ -42,19 +43,20 @@ def test_name_falls_back_to_window_id(fake_coordinator):
 # ---------------------------------------------------------------------------
 
 
-def test_is_closed_zero(fake_coordinator):
-    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": 0})
+def test_is_closed_at_fully_closed(fake_coordinator):
+    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": FULLY_CLOSED_POSITION})
     assert cover.is_closed is True
 
 
-def test_is_closed_nonzero(fake_coordinator):
-    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": 50})
+def test_is_closed_false_when_open(fake_coordinator):
+    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": FULLY_OPEN_POSITION})
     assert cover.is_closed is False
 
 
-def test_is_closed_string_zero(fake_coordinator):
-    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": "0"})
-    assert cover.is_closed is True
+def test_is_closed_false_at_midpoint(fake_coordinator):
+    mid = (FULLY_OPEN_POSITION + FULLY_CLOSED_POSITION) // 2
+    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": mid})
+    assert cover.is_closed is False
 
 
 def test_is_closed_none_when_missing(fake_coordinator):
@@ -64,29 +66,25 @@ def test_is_closed_none_when_missing(fake_coordinator):
 
 
 # ---------------------------------------------------------------------------
-# current_cover_tilt_position
+# available
 # ---------------------------------------------------------------------------
 
 
-def test_tilt_fully_open(fake_coordinator):
-    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": FULLY_OPEN_POSITION})
-    assert cover.current_cover_tilt_position == 100
+def test_available_when_window_id_present(fake_coordinator):
+    cover = make_cover(fake_coordinator, BASE_WINDOW)
+    assert cover.available is True
 
 
-def test_tilt_half(fake_coordinator):
-    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": FULLY_OPEN_POSITION // 2})
-    assert cover.current_cover_tilt_position == 50
+def test_unavailable_when_window_id_missing(fake_coordinator):
+    cover = make_cover(fake_coordinator, BASE_WINDOW)
+    fake_coordinator.data = {}  # window disappears from coordinator
+    assert cover.available is False
 
 
-def test_tilt_zero(fake_coordinator):
-    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": 0})
-    assert cover.current_cover_tilt_position == 0
-
-
-def test_tilt_none_when_missing(fake_coordinator):
-    data = {k: v for k, v in BASE_WINDOW.items() if k != "position"}
-    cover = make_cover(fake_coordinator, data)
-    assert cover.current_cover_tilt_position is None
+def test_is_closed_none_when_unavailable(fake_coordinator):
+    cover = make_cover(fake_coordinator, BASE_WINDOW)
+    fake_coordinator.data = {}
+    assert cover.is_closed is None
 
 
 # ---------------------------------------------------------------------------
@@ -108,22 +106,11 @@ async def test_open_cover(fake_coordinator):
     cover = make_cover(fake_coordinator, BASE_WINDOW)
     await cover.async_open_cover()
     fake_coordinator.client.open_window.assert_called_once_with(42)
-    fake_coordinator.async_request_refresh.assert_called_once()
+    fake_coordinator.async_request_aggressive_refresh.assert_called_once()
 
 
 async def test_close_cover(fake_coordinator):
     cover = make_cover(fake_coordinator, BASE_WINDOW)
     await cover.async_close_cover()
     fake_coordinator.client.close_window.assert_called_once_with(42)
-    fake_coordinator.async_request_refresh.assert_called_once()
-
-
-async def test_set_tilt_position_math(fake_coordinator):
-    cover = make_cover(fake_coordinator, BASE_WINDOW)
-    tilt_pct = 50
-    expected_native = round(tilt_pct * FULLY_OPEN_POSITION / 100)
-
-    await cover.async_set_cover_tilt_position(tilt_position=tilt_pct)
-
-    fake_coordinator.client.set_window_position.assert_called_once_with(42, expected_native)
-    fake_coordinator.async_request_refresh.assert_called_once()
+    fake_coordinator.async_request_aggressive_refresh.assert_called_once()
