@@ -29,13 +29,13 @@ def make_cover(coordinator, window_data):
 
 def test_name_from_Name_key(fake_coordinator):
     cover = make_cover(fake_coordinator, {**BASE_WINDOW, "Name": "Lounge"})
-    assert cover.name == "Lounge"
+    assert cover.name == "Lounge Cover"
 
 
 def test_name_falls_back_to_window_id(fake_coordinator):
     data = {k: v for k, v in BASE_WINDOW.items() if k != "Name"}
     cover = make_cover(fake_coordinator, data)
-    assert cover.name == "42"
+    assert cover.name == "42 Cover"
 
 
 # ---------------------------------------------------------------------------
