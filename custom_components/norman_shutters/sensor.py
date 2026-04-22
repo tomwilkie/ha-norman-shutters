@@ -6,7 +6,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfSignalStrength, UnitOfTemperature
+from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -78,7 +78,7 @@ class NormanRssiSensor(NormanEntity, SensorEntity):
     """Signal strength (RSSI) sensor for a Norman Shutter window."""
 
     _attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
-    _attr_native_unit_of_measurement = UnitOfSignalStrength.DECIBELS_MILLIWATT
+    _attr_native_unit_of_measurement = "dBm"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, coordinator: NormanCoordinator, window_id: str) -> None:
