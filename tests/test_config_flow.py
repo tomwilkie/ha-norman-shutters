@@ -1,3 +1,4 @@
+from ipaddress import IPv4Address
 from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.norman_shutters.const import (
@@ -10,7 +11,7 @@ from custom_components.norman_shutters.const import (
 def make_discovery(name, host):
     info = MagicMock()
     info.name = name
-    info.host = host
+    info.ip_address = IPv4Address(host)
     return info
 
 
