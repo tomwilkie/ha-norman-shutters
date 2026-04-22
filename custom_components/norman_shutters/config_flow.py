@@ -86,7 +86,7 @@ class NormanShuttersConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_zeroconf(self, discovery_info: ZeroconfServiceInfo) -> FlowResult:
         """Handle discovery of a Norman Hub via mDNS."""
-        self._host = discovery_info.host
+        self._host = str(discovery_info.ip_address)
 
         # Service name format: "NORMANHUB_AABBCCDDEEFF._http._tcp.local."
         # Extract the MAC to use as a stable unique ID (survives DHCP changes).
