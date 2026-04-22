@@ -81,7 +81,11 @@ class FakeConfigFlow:
 # definition time (NormanCover sets _attr_supported_features = OPEN | CLOSE | ...).
 _CoverEntityFeature = SimpleNamespace(OPEN=1, CLOSE=2, SET_TILT_POSITION=4)
 _CoverDeviceClass = SimpleNamespace(SHUTTER="shutter")
-_SensorDeviceClass = SimpleNamespace(BATTERY="battery")
+_SensorDeviceClass = SimpleNamespace(
+    BATTERY="battery",
+    TEMPERATURE="temperature",
+    SIGNAL_STRENGTH="signal_strength",
+)
 _SensorStateClass = SimpleNamespace(MEASUREMENT="measurement")
 
 
@@ -131,7 +135,12 @@ sys.modules.update(
             SensorStateClass=_SensorStateClass,
         ),
         "homeassistant.components.zeroconf": _mod("homeassistant.components.zeroconf"),
-        "homeassistant.const": _mod("homeassistant.const", PERCENTAGE="%"),
+        "homeassistant.const": _mod(
+            "homeassistant.const",
+            PERCENTAGE="%",
+            UnitOfTemperature=SimpleNamespace(CELSIUS="°C"),
+            UnitOfSignalStrength=SimpleNamespace(DECIBELS_MILLIWATT="dBm"),
+        ),
         "homeassistant.helpers": _mod("homeassistant.helpers"),
         "homeassistant.helpers.service_info": _mod("homeassistant.helpers.service_info"),
         "homeassistant.helpers.service_info.zeroconf": _mod(

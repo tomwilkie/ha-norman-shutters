@@ -41,7 +41,7 @@ class NormanCover(NormanEntity, CoverEntity):
 
     @property
     def name(self) -> str:
-        return self._window.get("Name", self._window_id)
+        return f"{self._window.get('Name', self._window_id)} Cover"
 
     @property
     def is_closed(self) -> bool | None:
