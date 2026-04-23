@@ -19,16 +19,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
-        run: pip install ruff pytest pytest-asyncio
+      - name: Set up venv
+        run: make setup
 
       - name: Check Python syntax
-        run: python -m compileall custom_components/norman_shutters -q
+        run: .venv/bin/python -m compileall custom_components/norman_shutters -q
 
       - name: Lint with ruff
-        run: |
-          ruff check custom_components/ tests/
-          ruff format --check custom_components/ tests/
+        run: make lint format-check
 
       - name: Run tests
-        run: pytest tests/ -v
+        run: make test
