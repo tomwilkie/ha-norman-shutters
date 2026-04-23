@@ -2,12 +2,10 @@
 
 ## After every change
 
-Always run the following before finishing. Tools like `ruff` and `pytest` are installed in the `.venv` virtualenv — always source it first:
+Always run the following before finishing:
 
 ```bash
-source .venv/bin/activate && ruff check custom_components/ tests/
-source .venv/bin/activate && ruff format --check custom_components/ tests/
-source .venv/bin/activate && pytest tests/ -v
+make all
 ```
 
-Fix any lint errors or test failures before considering the task complete.
+This runs lint, format checks, and tests. The Makefile handles venv setup automatically. Fix any errors or failures before considering the task complete.
