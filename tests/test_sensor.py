@@ -35,15 +35,9 @@ def make_rssi_sensor(coordinator, window_data):
 # ---------------------------------------------------------------------------
 
 
-def test_name_with_Name_key(fake_coordinator):
-    sensor = make_sensor(fake_coordinator, {**BASE_WINDOW, "Name": "Bedroom"})
-    assert sensor.name == "Bedroom Battery"
-
-
-def test_name_falls_back_to_window_id(fake_coordinator):
-    data = {k: v for k, v in BASE_WINDOW.items() if k != "Name"}
-    sensor = make_sensor(fake_coordinator, data)
-    assert sensor.name == "42 Battery"
+def test_battery_subname(fake_coordinator):
+    sensor = make_sensor(fake_coordinator, BASE_WINDOW)
+    assert sensor._attr_name == "Battery"
 
 
 # ---------------------------------------------------------------------------
@@ -82,15 +76,9 @@ def test_unique_id(fake_coordinator):
 # ---------------------------------------------------------------------------
 
 
-def test_temperature_name_with_Name_key(fake_coordinator):
-    sensor = make_temperature_sensor(fake_coordinator, {**BASE_WINDOW, "Name": "Bedroom"})
-    assert sensor.name == "Bedroom Temperature"
-
-
-def test_temperature_name_falls_back_to_window_id(fake_coordinator):
-    data = {k: v for k, v in BASE_WINDOW.items() if k != "Name"}
-    sensor = make_temperature_sensor(fake_coordinator, data)
-    assert sensor.name == "42 Temperature"
+def test_temperature_subname(fake_coordinator):
+    sensor = make_temperature_sensor(fake_coordinator, BASE_WINDOW)
+    assert sensor._attr_name == "Temperature"
 
 
 # ---------------------------------------------------------------------------
@@ -124,15 +112,9 @@ def test_temperature_unique_id(fake_coordinator):
 # ---------------------------------------------------------------------------
 
 
-def test_rssi_name_with_Name_key(fake_coordinator):
-    sensor = make_rssi_sensor(fake_coordinator, {**BASE_WINDOW, "Name": "Bedroom"})
-    assert sensor.name == "Bedroom Signal Strength"
-
-
-def test_rssi_name_falls_back_to_window_id(fake_coordinator):
-    data = {k: v for k, v in BASE_WINDOW.items() if k != "Name"}
-    sensor = make_rssi_sensor(fake_coordinator, data)
-    assert sensor.name == "42 Signal Strength"
+def test_rssi_subname(fake_coordinator):
+    sensor = make_rssi_sensor(fake_coordinator, BASE_WINDOW)
+    assert sensor._attr_name == "Signal Strength"
 
 
 # ---------------------------------------------------------------------------

@@ -58,14 +58,11 @@ class NormanBatterySensor(NormanEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.BATTERY
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_name = "Battery"
 
     def __init__(self, coordinator: NormanCoordinator, window_id: str) -> None:
         super().__init__(coordinator, window_id)
         self._attr_unique_id = f"{window_id}_battery"
-
-    @property
-    def name(self) -> str:
-        return f"{self._window.get('Name', self._window_id)} Battery"
 
     @property
     def native_value(self) -> int | None:
@@ -79,14 +76,11 @@ class NormanTemperatureSensor(NormanEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.TEMPERATURE
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_name = "Temperature"
 
     def __init__(self, coordinator: NormanCoordinator, window_id: str) -> None:
         super().__init__(coordinator, window_id)
         self._attr_unique_id = f"{window_id}_temperature"
-
-    @property
-    def name(self) -> str:
-        return f"{self._window.get('Name', self._window_id)} Temperature"
 
     @property
     def native_value(self) -> int | None:
@@ -100,14 +94,11 @@ class NormanRssiSensor(NormanEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
     _attr_native_unit_of_measurement = "dBm"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_name = "Signal Strength"
 
     def __init__(self, coordinator: NormanCoordinator, window_id: str) -> None:
         super().__init__(coordinator, window_id)
         self._attr_unique_id = f"{window_id}_rssi"
-
-    @property
-    def name(self) -> str:
-        return f"{self._window.get('Name', self._window_id)} Signal Strength"
 
     @property
     def native_value(self) -> int | None:
