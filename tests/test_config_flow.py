@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.norman_shutters.const import (
     CONF_HOST,
+    CONF_MAC,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
 )
@@ -11,6 +12,7 @@ from custom_components.norman_shutters.const import (
 def make_discovery(name, host):
     info = MagicMock()
     info.name = name
+    info.hostname = name.split(".")[0] + ".local."
     info.ip_address = IPv4Address(host)
     return info
 
@@ -20,20 +22,37 @@ def make_discovery(name, host):
 # ---------------------------------------------------------------------------
 
 
-async def test_zeroconf_sets_host_and_unique_id(config_flow):
-    discovery = make_discovery("NORMANHUB_AABBCC._http._tcp.local.", "192.168.1.10")
+async def test_zeroconf_sets_host(config_flow):
+    discovery = make_discovery("NORMANHUB_9DDAA3._http._tcp.local.", "192.168.1.10")
     await config_flow.async_step_zeroconf(discovery)
 
     assert config_flow._host == "192.168.1.10"
-    assert config_flow._unique_id == "AABBCC"
 
 
 async def test_zeroconf_returns_form(config_flow):
-    discovery = make_discovery("NORMANHUB_AABBCC._http._tcp.local.", "192.168.1.10")
+    discovery = make_discovery("NORMANHUB_9DDAA3._http._tcp.local.", "192.168.1.10")
     result = await config_flow.async_step_zeroconf(discovery)
 
     assert result["type"] == "form"
     assert result["step_id"] == "zeroconf_confirm"
+
+
+async def test_zeroconf_mac_reconstructed_from_hostname_suffix(config_flow):
+    """Norman OUI + 6-char hostname suffix reconstructs the full MAC."""
+    discovery = make_discovery("NORMANHUB_9DDAA3._http._tcp.local.", "192.168.1.10")
+    await config_flow.async_step_zeroconf(discovery)
+
+    assert config_flow._mac == "805E4F9DDAA3"
+    assert config_flow._unique_id == "805E4F9DDAA3"
+
+
+async def test_zeroconf_no_mac_when_suffix_not_hex(config_flow):
+    """Suffix that isn't valid hex falls back to IP as unique_id."""
+    discovery = make_discovery("NORMANHUB_ZZZZZZ._http._tcp.local.", "192.168.1.10")
+    await config_flow.async_step_zeroconf(discovery)
+
+    assert config_flow._mac is None
+    assert config_flow._unique_id == "192.168.1.10"
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +74,25 @@ async def test_zeroconf_confirm_with_input_creates_entry(config_flow):
 
     assert result["type"] == "create_entry"
     assert result["data"][CONF_HOST] == "192.168.1.10"
+
+
+async def test_zeroconf_confirm_includes_mac_when_suffix_valid(config_flow):
+    discovery = make_discovery("NORMANHUB_9DDAA3._http._tcp.local.", "192.168.1.10")
+    await config_flow.async_step_zeroconf(discovery)
+    result = await config_flow.async_step_zeroconf_confirm({})
+
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_MAC] == "805E4F9DDAA3"
+
+
+async def test_zeroconf_confirm_no_mac_when_suffix_not_hex(config_flow):
+    """When neither TXT properties nor a valid hex suffix are available, no MAC is stored."""
+    discovery = make_discovery("NORMANHUB_ZZZZZZ._http._tcp.local.", "192.168.1.10")
+    await config_flow.async_step_zeroconf(discovery)
+    result = await config_flow.async_step_zeroconf_confirm({})
+
+    assert result["type"] == "create_entry"
+    assert CONF_MAC not in result["data"]
 
 
 # ---------------------------------------------------------------------------

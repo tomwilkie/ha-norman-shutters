@@ -9,10 +9,13 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from pynormanshutters import login
 
-from .const import CONF_HOST, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import CONF_HOST, CONF_MAC, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+# Norman Hub devices share a common OUI. The mDNS hostname suffix (e.g.
+# "9DDAA3" in "NORMANHUB_9DDAA3") is the last 3 bytes of the MAC address.
+NORMAN_OUI = "805E4F"
 SERVICE_NAME_PREFIX = "NORMANHUB_"
 
 
@@ -51,6 +54,7 @@ class NormanShuttersConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._host: str | None = None
         self._unique_id: str | None = None
+        self._mac: str | None = None
 
     # ------------------------------------------------------------------
     # Manual setup (user-initiated from Integrations UI)
@@ -88,11 +92,24 @@ class NormanShuttersConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle discovery of a Norman Hub via mDNS."""
         self._host = str(discovery_info.ip_address)
 
-        # Service name format: "NORMANHUB_AABBCCDDEEFF._http._tcp.local."
-        # Extract the MAC to use as a stable unique ID (survives DHCP changes).
-        raw_name = discovery_info.name  # e.g. "NORMANHUB_AABBCC._http._tcp.local."
-        hub_label = raw_name.split(".")[0]  # "NORMANHUB_AABBCC"
-        self._unique_id = hub_label.removeprefix(SERVICE_NAME_PREFIX) or self._host
+        _LOGGER.debug(
+            "Norman Hub zeroconf discovery: name=%r hostname=%r",
+            discovery_info.name,
+            discovery_info.hostname,
+        )
+
+        # Reconstruct the full MAC from the service name suffix. Norman Hub devices
+        # use a fixed OUI and embed the last 3 MAC bytes in the service name
+        # (e.g. "NORMANHUB_9DDAA3" → full MAC "805E4F9DDAA3").
+        mac_hex: str | None = None
+        hub_label = discovery_info.name.split(".")[0]
+        suffix = hub_label.removeprefix(SERVICE_NAME_PREFIX).upper()
+        hex_chars = set("0123456789ABCDEF")
+        if hub_label != suffix and len(suffix) == 6 and all(c in hex_chars for c in suffix):
+            mac_hex = NORMAN_OUI + suffix
+
+        self._mac = mac_hex
+        self._unique_id = mac_hex or self._host
 
         await self.async_set_unique_id(self._unique_id)
         self._abort_if_unique_id_configured(updates={CONF_HOST: self._host})
@@ -105,9 +122,12 @@ class NormanShuttersConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Confirm addition of a discovered hub."""
         if user_input is not None:
+            data: dict = {CONF_HOST: self._host}
+            if self._mac:
+                data[CONF_MAC] = self._mac
             return self.async_create_entry(
                 title=f"Norman Hub ({self._host})",
-                data={CONF_HOST: self._host},
+                data=data,
             )
 
         return self.async_show_form(

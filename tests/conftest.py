@@ -19,9 +19,10 @@ import pytest
 
 
 class FakeDataUpdateCoordinator:
-    def __init__(self, hass, logger, *, name, update_interval):
+    def __init__(self, hass, logger, *, name, update_interval, config_entry=None):
         self.hass = hass
         self.data = {}
+        self.last_update_success = True
 
 
 class FakeCoordinatorEntity:
@@ -156,6 +157,7 @@ sys.modules.update(
         "homeassistant.helpers.device_registry": _mod(
             "homeassistant.helpers.device_registry",
             DeviceInfo=dict,
+            CONNECTION_NETWORK_MAC="mac",
         ),
         "homeassistant.helpers.entity_platform": _mod(
             "homeassistant.helpers.entity_platform",
@@ -205,7 +207,9 @@ def fake_coordinator(fake_hass):
     """NormanCoordinator wired to fake_hass with a mock client."""
     from custom_components.norman_shutters.coordinator import NormanCoordinator
 
-    coordinator = NormanCoordinator(fake_hass, "192.168.1.100")
+    coordinator = NormanCoordinator(
+        fake_hass, "192.168.1.100", mac_address="AABBCCDDEEFF", config_entry=MagicMock()
+    )
     coordinator.client = MagicMock()
     coordinator.async_request_refresh = AsyncMock()
     coordinator.async_request_aggressive_refresh = AsyncMock()
