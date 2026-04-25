@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from custom_components.norman_shutters.const import RETRY_DEADLINE
 from custom_components.norman_shutters.coordinator import NormanCoordinator
 
 SAMPLE_WINDOW = {
@@ -58,17 +59,23 @@ def test_parse_multiple_windows():
 
 
 async def test_update_data_success(fake_coordinator):
+    """First attempt succeeds — no sleep, no re-login."""
     raw = {"windows": [dict(SAMPLE_WINDOW)]}
     fake_coordinator.client.get_window_info.return_value = raw
+    fake_coordinator._async_setup = AsyncMock()
 
-    result = await fake_coordinator._async_update_data()
+    with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        result = await fake_coordinator._async_update_data()
 
     assert "52280" in result
     assert result["52280"]["Name"] == "Right Window 1"
+    mock_sleep.assert_not_called()
+    fake_coordinator._async_setup.assert_not_called()
 
 
-async def test_update_data_retries_on_failure(fake_coordinator):
-    raw = {"windows": [dict(SAMPLE_WINDOW)]}
+async def test_update_data_retries_on_exception(fake_coordinator):
+    """An exception on the first call triggers re-login + sleep, then success on retry."""
+    raw_valid = {"windows": [dict(SAMPLE_WINDOW)]}
     call_count = 0
 
     def get_window_info():
@@ -76,23 +83,82 @@ async def test_update_data_retries_on_failure(fake_coordinator):
         call_count += 1
         if call_count == 1:
             raise OSError("session expired")
-        return raw
+        return raw_valid
 
     fake_coordinator.client.get_window_info.side_effect = get_window_info
     fake_coordinator._async_setup = AsyncMock()
 
-    result = await fake_coordinator._async_update_data()
+    with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        result = await fake_coordinator._async_update_data()
 
-    fake_coordinator._async_setup.assert_called_once()
     assert "52280" in result
+    fake_coordinator._async_setup.assert_called_once()
+    mock_sleep.assert_called_once_with(1.0)
 
 
-async def test_update_data_raises_update_failed(fake_coordinator):
+async def test_update_data_retries_on_empty_list(fake_coordinator):
+    """An empty-list response triggers re-login + sleep, then success on retry."""
+    raw_empty = {"totalWindow": 0, "windows": []}
+    raw_valid = {"windows": [dict(SAMPLE_WINDOW)]}
+    call_count = 0
+
+    def get_window_info():
+        nonlocal call_count
+        call_count += 1
+        return raw_empty if call_count == 1 else raw_valid
+
+    fake_coordinator.client.get_window_info.side_effect = get_window_info
+    fake_coordinator._async_setup = AsyncMock()
+
+    with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        result = await fake_coordinator._async_update_data()
+
+    assert "52280" in result
+    fake_coordinator._async_setup.assert_called_once()
+    mock_sleep.assert_called_once_with(1.0)
+
+
+async def test_update_data_raises_after_deadline(fake_coordinator):
+    """UpdateFailed is raised once cumulative sleep reaches RETRY_DEADLINE."""
     fake_coordinator.client.get_window_info.side_effect = OSError("always fails")
     fake_coordinator._async_setup = AsyncMock()
 
-    with pytest.raises(Exception, match="Error communicating"):
+    # Each asyncio.sleep call advances elapsed by its argument; when elapsed
+    # accumulates to RETRY_DEADLINE the next failure raises UpdateFailed.
+    elapsed_tracker = [0.0]
+
+    async def fake_sleep(seconds):
+        elapsed_tracker[0] += seconds
+
+    with (
+        patch("asyncio.sleep", side_effect=fake_sleep),
+        pytest.raises(Exception, match="Norman Hub unreachable after"),
+    ):
         await fake_coordinator._async_update_data()
+
+    assert elapsed_tracker[0] >= RETRY_DEADLINE
+
+
+async def test_update_data_relogins_before_each_retry(fake_coordinator):
+    """_async_setup is called before every retry, not just the first."""
+    raw_valid = {"windows": [dict(SAMPLE_WINDOW)]}
+    call_count = 0
+
+    def get_window_info():
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 2:
+            raise OSError("not yet")
+        return raw_valid
+
+    fake_coordinator.client.get_window_info.side_effect = get_window_info
+    fake_coordinator._async_setup = AsyncMock()
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        result = await fake_coordinator._async_update_data()
+
+    assert "52280" in result
+    assert fake_coordinator._async_setup.call_count == 2
 
 
 # ---------------------------------------------------------------------------

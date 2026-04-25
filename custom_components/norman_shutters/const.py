@@ -4,3 +4,5 @@ CONF_SCAN_INTERVAL = "scan_interval"
 PLATFORMS = ["cover", "sensor"]
 DEFAULT_SCAN_INTERVAL = 60  # seconds
 AGGRESSIVE_POLL_INITIAL = 2  # seconds — first backoff interval after an operation
+RETRY_DEADLINE = 60  # seconds — give up retrying _async_update_data after this long
+RETRY_INITIAL_DELAY = 1  # seconds — first backoff sleep between update retries

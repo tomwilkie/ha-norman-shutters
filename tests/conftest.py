@@ -22,6 +22,7 @@ class FakeDataUpdateCoordinator:
     def __init__(self, hass, logger, *, name, update_interval):
         self.hass = hass
         self.data = {}
+        self.last_update_success = True
 
 
 class FakeCoordinatorEntity:
