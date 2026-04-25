@@ -37,8 +37,8 @@ def make_rssi_sensor(coordinator, window_data):
 
 def test_battery_name(fake_coordinator):
     sensor = make_sensor(fake_coordinator, BASE_WINDOW)
-    assert sensor._attr_name == "Bedroom Battery"
-    assert sensor._attr_has_entity_name is False
+    assert sensor._attr_name == "Battery"
+    assert sensor._attr_has_entity_name is True
 
 
 # ---------------------------------------------------------------------------
@@ -79,8 +79,8 @@ def test_unique_id(fake_coordinator):
 
 def test_temperature_name(fake_coordinator):
     sensor = make_temperature_sensor(fake_coordinator, BASE_WINDOW)
-    assert sensor._attr_name == "Bedroom Temperature"
-    assert sensor._attr_has_entity_name is False
+    assert sensor._attr_name == "Temperature"
+    assert sensor._attr_has_entity_name is True
 
 
 # ---------------------------------------------------------------------------
@@ -107,11 +107,6 @@ def test_temperature_native_value_none_when_missing(fake_coordinator):
 def test_temperature_unique_id(fake_coordinator):
     sensor = make_temperature_sensor(fake_coordinator, BASE_WINDOW)
     assert sensor._attr_unique_id == "42_temperature"
-
-
-def test_temperature_entity_id(fake_coordinator):
-    sensor = make_temperature_sensor(fake_coordinator, BASE_WINDOW)
-    assert sensor.entity_id == "sensor.bedroom_temperature"
 
 
 # ---------------------------------------------------------------------------
@@ -149,11 +144,6 @@ def test_rssi_native_value_none_when_missing(fake_coordinator):
 def test_rssi_unique_id(fake_coordinator):
     sensor = make_rssi_sensor(fake_coordinator, BASE_WINDOW)
     assert sensor._attr_unique_id == "42_rssi"
-
-
-def test_rssi_entity_id(fake_coordinator):
-    sensor = make_rssi_sensor(fake_coordinator, BASE_WINDOW)
-    assert sensor.entity_id == "sensor.bedroom_signal_strength"
 
 
 # ---------------------------------------------------------------------------
