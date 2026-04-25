@@ -23,15 +23,22 @@ class NormanCoordinator(DataUpdateCoordinator):
     """Coordinator for Norman Shutters - polls get_window_info at a configurable interval."""
 
     def __init__(
-        self, hass: HomeAssistant, host: str, scan_interval: int = DEFAULT_SCAN_INTERVAL
+        self,
+        hass: HomeAssistant,
+        host: str,
+        scan_interval: int = DEFAULT_SCAN_INTERVAL,
+        mac_address: str | None = None,
+        config_entry=None,
     ) -> None:
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
             update_interval=timedelta(seconds=scan_interval),
+            config_entry=config_entry,
         )
         self.host = host
+        self.mac_address = mac_address
         self.client = None
         self._scan_interval = scan_interval
         self._aggressive_poll_unsubs: list = []

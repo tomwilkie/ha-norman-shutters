@@ -4,7 +4,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from .const import CONF_HOST, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN, PLATFORMS
+from .const import (
+    CONF_HOST,
+    CONF_MAC,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    PLATFORMS,
+)
 from .coordinator import NormanCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,7 +25,13 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Norman Shutters from a config entry."""
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-    coordinator = NormanCoordinator(hass, entry.data[CONF_HOST], scan_interval)
+    coordinator = NormanCoordinator(
+        hass,
+        entry.data[CONF_HOST],
+        scan_interval,
+        mac_address=entry.data.get(CONF_MAC),
+        config_entry=entry,
+    )
 
     try:
         await coordinator._async_setup()

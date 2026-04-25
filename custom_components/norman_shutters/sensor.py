@@ -12,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import NormanCoordinator
-from .entity import NormanEntity
+from .entity import NormanEntity, NormanHubEntity
 
 
 async def async_setup_entry(
@@ -21,7 +21,8 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: NormanCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
+    entities: list = [NormanConnectedWindowsSensor(coordinator)]
+    entities.extend(
         entity
         for window_id in coordinator.data
         for entity in [
@@ -30,6 +31,25 @@ async def async_setup_entry(
             NormanRssiSensor(coordinator, window_id),
         ]
     )
+    async_add_entities(entities)
+
+
+class NormanConnectedWindowsSensor(NormanHubEntity, SensorEntity):
+    """Sensor reporting how many shutters are connected to the Norman Hub."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: NormanCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_name = "Connected Shutters"
+
+    @property
+    def unique_id(self) -> str:
+        return f"hub_{self._hub_id}_connected_shutters"
+
+    @property
+    def native_value(self) -> int:
+        return len(self.coordinator.data)
 
 
 class NormanBatterySensor(NormanEntity, SensorEntity):

@@ -1,6 +1,6 @@
 import pynormanshutters
 
-from custom_components.norman_shutters.cover import NormanCover
+from custom_components.norman_shutters.cover import NormanCover, NormanHubCover
 
 FULLY_OPEN_POSITION = pynormanshutters.FULLY_OPEN_POSITION  # 37 — slats open
 FULLY_CLOSED_POSITION = pynormanshutters.FULLY_CLOSED_POSITION  # 100 — slats closed
@@ -114,3 +114,84 @@ async def test_close_cover(fake_coordinator):
     await cover.async_close_cover()
     fake_coordinator.client.close_window.assert_called_once_with(42)
     fake_coordinator.async_request_aggressive_refresh.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# NormanHubCover
+# ---------------------------------------------------------------------------
+
+WINDOW_A = {**BASE_WINDOW, "Id": 10, "Name": "A"}
+WINDOW_B = {**BASE_WINDOW, "Id": 20, "Name": "B"}
+
+
+def make_hub_cover(coordinator, windows: dict):
+    coordinator.data = windows
+    return NormanHubCover(coordinator)
+
+
+def test_hub_cover_unique_id(fake_coordinator):
+    cover = make_hub_cover(fake_coordinator, {})
+    assert cover.unique_id == "hub_AABBCCDDEEFF_cover"
+
+
+def test_hub_cover_name(fake_coordinator):
+    cover = make_hub_cover(fake_coordinator, {})
+    assert cover._attr_name == "All Shutters"
+
+
+def test_hub_cover_is_closed_all_closed(fake_coordinator):
+    windows = {
+        "10": {**WINDOW_A, "position": FULLY_CLOSED_POSITION},
+        "20": {**WINDOW_B, "position": FULLY_CLOSED_POSITION},
+    }
+    cover = make_hub_cover(fake_coordinator, windows)
+    assert cover.is_closed is True
+
+
+def test_hub_cover_is_closed_some_open(fake_coordinator):
+    windows = {
+        "10": {**WINDOW_A, "position": FULLY_CLOSED_POSITION},
+        "20": {**WINDOW_B, "position": FULLY_OPEN_POSITION},
+    }
+    cover = make_hub_cover(fake_coordinator, windows)
+    assert cover.is_closed is False
+
+
+def test_hub_cover_is_closed_none_when_empty(fake_coordinator):
+    cover = make_hub_cover(fake_coordinator, {})
+    assert cover.is_closed is None
+
+
+def test_hub_cover_is_closed_none_when_position_missing(fake_coordinator):
+    windows = {"10": {k: v for k, v in WINDOW_A.items() if k != "position"}}
+    cover = make_hub_cover(fake_coordinator, windows)
+    assert cover.is_closed is None
+
+
+async def test_hub_cover_open_calls_full_open(fake_coordinator):
+    windows = {"10": WINDOW_A, "20": WINDOW_B}
+    cover = make_hub_cover(fake_coordinator, windows)
+    await cover.async_open_cover()
+    fake_coordinator.client.full_open.assert_called_once_with()
+    fake_coordinator.async_request_aggressive_refresh.assert_called_once()
+
+
+async def test_hub_cover_close_calls_full_close(fake_coordinator):
+    windows = {"10": WINDOW_A, "20": WINDOW_B}
+    cover = make_hub_cover(fake_coordinator, windows)
+    await cover.async_close_cover()
+    fake_coordinator.client.full_close.assert_called_once_with()
+    fake_coordinator.async_request_aggressive_refresh.assert_called_once()
+
+
+def test_hub_cover_device_info_has_mac(fake_coordinator):
+    cover = make_hub_cover(fake_coordinator, {})
+    info = cover.device_info
+    connections = info["connections"]
+    assert ("mac", "aa:bb:cc:dd:ee:ff") in connections
+
+
+def test_cover_device_info_has_via_device(fake_coordinator):
+    cover = make_cover(fake_coordinator, BASE_WINDOW)
+    info = cover.device_info
+    assert info["via_device"] == ("norman_shutters", "hub_AABBCCDDEEFF")
