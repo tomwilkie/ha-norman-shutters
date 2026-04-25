@@ -36,14 +36,11 @@ class NormanCover(NormanEntity, CoverEntity):
 
     _attr_device_class = CoverDeviceClass.SHUTTER
     _attr_supported_features = CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE
+    _attr_name = None
 
     def __init__(self, coordinator: NormanCoordinator, window_id: str) -> None:
         super().__init__(coordinator, window_id)
         self._attr_unique_id = window_id
-
-    @property
-    def name(self) -> str:
-        return f"{self._window.get('Name', self._window_id)} Cover"
 
     @property
     def is_closed(self) -> bool | None:
@@ -76,10 +73,10 @@ class NormanHubCover(NormanHubEntity, CoverEntity):
 
     _attr_device_class = CoverDeviceClass.SHUTTER
     _attr_supported_features = CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE
+    _attr_name = "All Shutters"
 
     def __init__(self, coordinator: NormanCoordinator) -> None:
         super().__init__(coordinator)
-        self._attr_name = "All Shutters"
 
     @property
     def unique_id(self) -> str:
