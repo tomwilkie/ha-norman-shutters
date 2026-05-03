@@ -93,10 +93,10 @@ class NormanHubCover(NormanHubEntity, CoverEntity):
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         _LOGGER.debug("open_cover called for all windows")
-        await self.hass.async_add_executor_job(self.coordinator.client.full_open)
+        await self.hass.async_add_executor_job(self.coordinator.client.fullopen)
         await self.coordinator.async_request_aggressive_refresh()
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         _LOGGER.debug("close_cover called for all windows")
-        await self.hass.async_add_executor_job(self.coordinator.client.full_close)
+        await self.hass.async_add_executor_job(self.coordinator.client.fullclose)
         await self.coordinator.async_request_aggressive_refresh()
