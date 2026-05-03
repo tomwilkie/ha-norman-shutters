@@ -174,19 +174,19 @@ def test_hub_cover_is_closed_none_when_position_missing(fake_coordinator):
     assert cover.is_closed is None
 
 
-async def test_hub_cover_open_calls_full_open(fake_coordinator):
+async def test_hub_cover_open_calls_fullopen(fake_coordinator):
     windows = {"10": WINDOW_A, "20": WINDOW_B}
     cover = make_hub_cover(fake_coordinator, windows)
     await cover.async_open_cover()
-    fake_coordinator.client.full_open.assert_called_once_with()
+    fake_coordinator.client.fullopen.assert_called_once_with()
     fake_coordinator.async_request_aggressive_refresh.assert_called_once()
 
 
-async def test_hub_cover_close_calls_full_close(fake_coordinator):
+async def test_hub_cover_close_calls_fullclose(fake_coordinator):
     windows = {"10": WINDOW_A, "20": WINDOW_B}
     cover = make_hub_cover(fake_coordinator, windows)
     await cover.async_close_cover()
-    fake_coordinator.client.full_close.assert_called_once_with()
+    fake_coordinator.client.fullclose.assert_called_once_with()
     fake_coordinator.async_request_aggressive_refresh.assert_called_once()
 
 
