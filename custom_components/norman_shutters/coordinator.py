@@ -40,6 +40,7 @@ class NormanCoordinator(DataUpdateCoordinator):
         self.host = host
         self.mac_address = mac_address
         self.client = None
+        self.hub_device_id: str | None = None
         self._scan_interval = scan_interval
         self._aggressive_poll_unsubs: list = []
 

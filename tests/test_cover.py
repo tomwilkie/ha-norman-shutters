@@ -197,7 +197,8 @@ def test_hub_cover_device_info_has_mac(fake_coordinator):
     assert ("mac", "aa:bb:cc:dd:ee:ff") in connections
 
 
-def test_cover_device_info_has_via_device(fake_coordinator):
+def test_cover_device_info_has_via_device_id(fake_coordinator):
     cover = make_cover(fake_coordinator, BASE_WINDOW)
     info = cover.device_info
-    assert info["via_device"] == ("norman_shutters", "hub_AABBCCDDEEFF")
+    assert info["via_device_id"] == "hub-device-id"
+    assert "via_device" not in info

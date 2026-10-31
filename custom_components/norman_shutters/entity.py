@@ -11,6 +11,21 @@ def _format_mac(mac_hex: str) -> str:
     return ":".join(mac[i : i + 2] for i in range(0, len(mac), 2))
 
 
+def hub_device_kwargs(coordinator: NormanCoordinator) -> dict:
+    """Device registry fields for the Norman Hub device."""
+    hub_id = coordinator.mac_address or coordinator.host
+    connections: set[tuple[str, str]] = set()
+    if coordinator.mac_address:
+        connections.add((CONNECTION_NETWORK_MAC, _format_mac(coordinator.mac_address)))
+    return {
+        "identifiers": {(DOMAIN, f"hub_{hub_id}")},
+        "name": "Norman Hub",
+        "manufacturer": "Norman",
+        "model": "Norman Hub",
+        "connections": connections,
+    }
+
+
 class NormanEntity(CoordinatorEntity[NormanCoordinator]):
     """Base entity for all Norman Shutters window devices."""
 
@@ -30,13 +45,12 @@ class NormanEntity(CoordinatorEntity[NormanCoordinator]):
 
     @property
     def device_info(self) -> DeviceInfo:
-        hub_id = self.coordinator.mac_address or self.coordinator.host
         return DeviceInfo(
             identifiers={(DOMAIN, self._window_id)},
             name=self._window.get("Name", self._window_id),
             manufacturer="Norman",
             model="PerfectTilt",
-            via_device=(DOMAIN, f"hub_{hub_id}"),
+            via_device_id=self.coordinator.hub_device_id,
         )
 
 
@@ -54,13 +68,4 @@ class NormanHubEntity(CoordinatorEntity[NormanCoordinator]):
 
     @property
     def device_info(self) -> DeviceInfo:
-        connections: set[tuple[str, str]] = set()
-        if self.coordinator.mac_address:
-            connections.add((CONNECTION_NETWORK_MAC, _format_mac(self.coordinator.mac_address)))
-        return DeviceInfo(
-            identifiers={(DOMAIN, f"hub_{self._hub_id}")},
-            name="Norman Hub",
-            manufacturer="Norman",
-            model="Norman Hub",
-            connections=connections,
-        )
+        return DeviceInfo(**hub_device_kwargs(self.coordinator))

@@ -183,7 +183,8 @@ def test_connected_windows_device_info_has_mac(fake_coordinator):
     assert ("mac", "aa:bb:cc:dd:ee:ff") in connections
 
 
-def test_window_sensor_device_info_has_via_device(fake_coordinator):
+def test_window_sensor_device_info_has_via_device_id(fake_coordinator):
     sensor = make_sensor(fake_coordinator, BASE_WINDOW)
     info = sensor.device_info
-    assert info["via_device"] == ("norman_shutters", "hub_AABBCCDDEEFF")
+    assert info["via_device_id"] == "hub-device-id"
+    assert "via_device" not in info

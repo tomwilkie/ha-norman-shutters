@@ -158,6 +158,7 @@ sys.modules.update(
             "homeassistant.helpers.device_registry",
             DeviceInfo=dict,
             CONNECTION_NETWORK_MAC="mac",
+            async_get=MagicMock(),
         ),
         "homeassistant.helpers.entity_platform": _mod(
             "homeassistant.helpers.entity_platform",
@@ -211,6 +212,7 @@ def fake_coordinator(fake_hass):
         fake_hass, "192.168.1.100", mac_address="AABBCCDDEEFF", config_entry=MagicMock()
     )
     coordinator.client = MagicMock()
+    coordinator.hub_device_id = "hub-device-id"
     coordinator.async_request_refresh = AsyncMock()
     coordinator.async_request_aggressive_refresh = AsyncMock()
     return coordinator
