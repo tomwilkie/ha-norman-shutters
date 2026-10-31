@@ -3,6 +3,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
 
 from .const import (
     CONF_HOST,
@@ -13,6 +14,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import NormanCoordinator
+from .entity import hub_device_kwargs
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,6 +43,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ) from err
 
     await coordinator.async_config_entry_first_refresh()
+
+    # Register the hub before the platforms so window devices can link to it
+    # by device ID (via_device_id).
+    hub_device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id, **hub_device_kwargs(coordinator)
+    )
+    coordinator.hub_device_id = hub_device.id
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
