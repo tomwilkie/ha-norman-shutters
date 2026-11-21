@@ -31,6 +31,12 @@ async def test_setup_retries_when_login_fails(
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
 
 
+async def test_setup_logs_in_once(
+    hass: HomeAssistant, init_integration: MockConfigEntry, mock_login: MagicMock
+) -> None:
+    mock_login.assert_called_once()
+
+
 async def test_hub_device_registered(
     hass: HomeAssistant, init_integration: MockConfigEntry
 ) -> None:
