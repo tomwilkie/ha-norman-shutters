@@ -11,19 +11,19 @@ def _format_mac(mac_hex: str) -> str:
     return ":".join(mac[i : i + 2] for i in range(0, len(mac), 2))
 
 
-def hub_device_kwargs(coordinator: NormanCoordinator) -> dict:
-    """Device registry fields for the Norman Hub device."""
+def hub_device_info(coordinator: NormanCoordinator) -> DeviceInfo:
+    """Device registry info for the Norman Hub device."""
     hub_id = coordinator.mac_address or coordinator.host
     connections: set[tuple[str, str]] = set()
     if coordinator.mac_address:
         connections.add((CONNECTION_NETWORK_MAC, _format_mac(coordinator.mac_address)))
-    return {
-        "identifiers": {(DOMAIN, f"hub_{hub_id}")},
-        "name": "Norman Hub",
-        "manufacturer": "Norman",
-        "model": "Norman Hub",
-        "connections": connections,
-    }
+    return DeviceInfo(
+        identifiers={(DOMAIN, f"hub_{hub_id}")},
+        name="Norman Hub",
+        manufacturer="Norman",
+        model="Norman Hub",
+        connections=connections,
+    )
 
 
 class NormanEntity(CoordinatorEntity[NormanCoordinator]):
@@ -68,4 +68,4 @@ class NormanHubEntity(CoordinatorEntity[NormanCoordinator]):
 
     @property
     def device_info(self) -> DeviceInfo:
-        return DeviceInfo(**hub_device_kwargs(self.coordinator))
+        return hub_device_info(self.coordinator)

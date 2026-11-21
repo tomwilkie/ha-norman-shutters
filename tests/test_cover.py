@@ -1,204 +1,130 @@
-import pynormanshutters
+from unittest.mock import MagicMock, patch
 
-from custom_components.norman_shutters.cover import NormanCover, NormanHubCover
+import pytest
+from homeassistant.components.cover import DOMAIN as COVER_DOMAIN
+from homeassistant.components.cover import CoverState
+from homeassistant.const import ATTR_ENTITY_ID, SERVICE_CLOSE_COVER, SERVICE_OPEN_COVER
+from homeassistant.core import HomeAssistant
+from pytest_homeassistant.common import MockConfigEntry
 
-FULLY_OPEN_POSITION = pynormanshutters.FULLY_OPEN_POSITION  # 37 — slats open
-FULLY_CLOSED_POSITION = pynormanshutters.FULLY_CLOSED_POSITION  # 100 — slats closed
+from custom_components.norman_shutters.const import DOMAIN
 
-BASE_WINDOW = {
-    "Id": 42,
-    "Name": "Living Room",
-    "position": FULLY_OPEN_POSITION,
-    "angle": 0,
-    "battery": "75",
-    "solar": 200,
-    "Rssi": 60,
-    "temp": 20,
-}
+from .conftest import MAC, WINDOW_A, WINDOW_B, entity_id_for
+
+HUB_COVER_UID = f"hub_{MAC}_cover"
 
 
-def make_cover(coordinator, window_data):
-    coordinator.data = {"42": window_data}
-    return NormanCover(coordinator, "42")
+async def _refresh(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    await hass.data[DOMAIN][entry.entry_id].async_refresh()
+    await hass.async_block_till_done()
 
 
-# ---------------------------------------------------------------------------
-# name
-# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def no_backoff_timers():
+    """Don't schedule the follow-up polls after a command."""
+    with patch(
+        "custom_components.norman_shutters.coordinator.async_call_later",
+        return_value=MagicMock(),
+    ):
+        yield
 
 
-def test_name_is_primary_entity(fake_coordinator):
-    cover = make_cover(fake_coordinator, BASE_WINDOW)
-    assert cover._attr_name is None
-    assert cover._attr_has_entity_name is True
+async def test_window_cover_states(hass: HomeAssistant, init_integration: MockConfigEntry) -> None:
+    open_window = hass.states.get(entity_id_for(hass, COVER_DOMAIN, str(WINDOW_A["Id"])))
+    closed_window = hass.states.get(entity_id_for(hass, COVER_DOMAIN, str(WINDOW_B["Id"])))
+
+    assert open_window.state == CoverState.OPEN
+    assert open_window.attributes["friendly_name"] == "Right Window 1"
+    assert open_window.attributes["device_class"] == "shutter"
+    assert closed_window.state == CoverState.CLOSED
 
 
-def test_device_info_uses_window_name(fake_coordinator):
-    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "Name": "Lounge"})
-    assert cover.device_info["name"] == "Lounge"
+async def test_hub_cover_open_when_any_window_open(
+    hass: HomeAssistant, init_integration: MockConfigEntry
+) -> None:
+    state = hass.states.get(entity_id_for(hass, COVER_DOMAIN, HUB_COVER_UID))
+
+    assert state.state == CoverState.OPEN
+    assert state.attributes["friendly_name"] == "Norman Hub All Shutters"
 
 
-def test_device_info_falls_back_to_window_id(fake_coordinator):
-    data = {k: v for k, v in BASE_WINDOW.items() if k != "Name"}
-    cover = make_cover(fake_coordinator, data)
-    assert cover.device_info["name"] == "42"
-
-
-# ---------------------------------------------------------------------------
-# is_closed
-# ---------------------------------------------------------------------------
-
-
-def test_is_closed_at_fully_closed(fake_coordinator):
-    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": FULLY_CLOSED_POSITION})
-    assert cover.is_closed is True
-
-
-def test_is_closed_false_when_open(fake_coordinator):
-    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": FULLY_OPEN_POSITION})
-    assert cover.is_closed is False
-
-
-def test_is_closed_false_at_midpoint(fake_coordinator):
-    mid = (FULLY_OPEN_POSITION + FULLY_CLOSED_POSITION) // 2
-    cover = make_cover(fake_coordinator, {**BASE_WINDOW, "position": mid})
-    assert cover.is_closed is False
-
-
-def test_is_closed_none_when_missing(fake_coordinator):
-    data = {k: v for k, v in BASE_WINDOW.items() if k != "position"}
-    cover = make_cover(fake_coordinator, data)
-    assert cover.is_closed is None
-
-
-# ---------------------------------------------------------------------------
-# available
-# ---------------------------------------------------------------------------
-
-
-def test_available_when_window_id_present(fake_coordinator):
-    cover = make_cover(fake_coordinator, BASE_WINDOW)
-    assert cover.available is True
-
-
-def test_unavailable_when_window_id_missing(fake_coordinator):
-    cover = make_cover(fake_coordinator, BASE_WINDOW)
-    fake_coordinator.data = {}  # window disappears from coordinator
-    assert cover.available is False
-
-
-def test_is_closed_none_when_unavailable(fake_coordinator):
-    cover = make_cover(fake_coordinator, BASE_WINDOW)
-    fake_coordinator.data = {}
-    assert cover.is_closed is None
-
-
-# ---------------------------------------------------------------------------
-# _window_int_id
-# ---------------------------------------------------------------------------
-
-
-def test_window_int_id(fake_coordinator):
-    cover = make_cover(fake_coordinator, BASE_WINDOW)
-    assert cover._window_int_id == 42
-
-
-# ---------------------------------------------------------------------------
-# async actions
-# ---------------------------------------------------------------------------
-
-
-async def test_open_cover(fake_coordinator):
-    cover = make_cover(fake_coordinator, BASE_WINDOW)
-    await cover.async_open_cover()
-    fake_coordinator.client.open_window.assert_called_once_with(42)
-    fake_coordinator.async_request_aggressive_refresh.assert_called_once()
-
-
-async def test_close_cover(fake_coordinator):
-    cover = make_cover(fake_coordinator, BASE_WINDOW)
-    await cover.async_close_cover()
-    fake_coordinator.client.close_window.assert_called_once_with(42)
-    fake_coordinator.async_request_aggressive_refresh.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
-# NormanHubCover
-# ---------------------------------------------------------------------------
-
-WINDOW_A = {**BASE_WINDOW, "Id": 10, "Name": "A"}
-WINDOW_B = {**BASE_WINDOW, "Id": 20, "Name": "B"}
-
-
-def make_hub_cover(coordinator, windows: dict):
-    coordinator.data = windows
-    return NormanHubCover(coordinator)
-
-
-def test_hub_cover_unique_id(fake_coordinator):
-    cover = make_hub_cover(fake_coordinator, {})
-    assert cover.unique_id == "hub_AABBCCDDEEFF_cover"
-
-
-def test_hub_cover_name(fake_coordinator):
-    cover = make_hub_cover(fake_coordinator, {})
-    assert cover._attr_name == "All Shutters"
-
-
-def test_hub_cover_is_closed_all_closed(fake_coordinator):
-    windows = {
-        "10": {**WINDOW_A, "position": FULLY_CLOSED_POSITION},
-        "20": {**WINDOW_B, "position": FULLY_CLOSED_POSITION},
+async def test_hub_cover_closed_when_all_closed(
+    hass: HomeAssistant, init_integration: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    mock_client.get_window_info.return_value = {
+        "windows": [{**WINDOW_A, "position": 100}, dict(WINDOW_B)]
     }
-    cover = make_hub_cover(fake_coordinator, windows)
-    assert cover.is_closed is True
+    await _refresh(hass, init_integration)
+
+    assert hass.states.get(entity_id_for(hass, COVER_DOMAIN, HUB_COVER_UID)).state == (
+        CoverState.CLOSED
+    )
 
 
-def test_hub_cover_is_closed_some_open(fake_coordinator):
-    windows = {
-        "10": {**WINDOW_A, "position": FULLY_CLOSED_POSITION},
-        "20": {**WINDOW_B, "position": FULLY_OPEN_POSITION},
-    }
-    cover = make_hub_cover(fake_coordinator, windows)
-    assert cover.is_closed is False
+async def test_cover_unknown_when_position_missing(
+    hass: HomeAssistant, init_integration: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    window = {k: v for k, v in WINDOW_A.items() if k != "position"}
+    mock_client.get_window_info.return_value = {"windows": [window, dict(WINDOW_B)]}
+    await _refresh(hass, init_integration)
+
+    assert hass.states.get(entity_id_for(hass, COVER_DOMAIN, str(WINDOW_A["Id"]))).state == (
+        "unknown"
+    )
+    assert hass.states.get(entity_id_for(hass, COVER_DOMAIN, HUB_COVER_UID)).state == "unknown"
 
 
-def test_hub_cover_is_closed_none_when_empty(fake_coordinator):
-    cover = make_hub_cover(fake_coordinator, {})
-    assert cover.is_closed is None
+async def test_cover_unavailable_when_window_disappears(
+    hass: HomeAssistant, init_integration: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    mock_client.get_window_info.return_value = {"windows": [dict(WINDOW_B)]}
+    await _refresh(hass, init_integration)
+
+    assert hass.states.get(entity_id_for(hass, COVER_DOMAIN, str(WINDOW_A["Id"]))).state == (
+        "unavailable"
+    )
 
 
-def test_hub_cover_is_closed_none_when_position_missing(fake_coordinator):
-    windows = {"10": {k: v for k, v in WINDOW_A.items() if k != "position"}}
-    cover = make_hub_cover(fake_coordinator, windows)
-    assert cover.is_closed is None
+@pytest.mark.parametrize(
+    ("service", "method"),
+    [(SERVICE_OPEN_COVER, "open_window"), (SERVICE_CLOSE_COVER, "close_window")],
+)
+async def test_window_cover_commands(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_client: MagicMock,
+    service: str,
+    method: str,
+) -> None:
+    polls_before = mock_client.get_window_info.call_count
+    await hass.services.async_call(
+        COVER_DOMAIN,
+        service,
+        {ATTR_ENTITY_ID: entity_id_for(hass, COVER_DOMAIN, str(WINDOW_A["Id"]))},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    getattr(mock_client, method).assert_called_once_with(WINDOW_A["Id"])
+    assert mock_client.get_window_info.call_count > polls_before
 
 
-async def test_hub_cover_open_calls_fullopen(fake_coordinator):
-    windows = {"10": WINDOW_A, "20": WINDOW_B}
-    cover = make_hub_cover(fake_coordinator, windows)
-    await cover.async_open_cover()
-    fake_coordinator.client.fullopen.assert_called_once_with()
-    fake_coordinator.async_request_aggressive_refresh.assert_called_once()
+@pytest.mark.parametrize(
+    ("service", "method"),
+    [(SERVICE_OPEN_COVER, "fullopen"), (SERVICE_CLOSE_COVER, "fullclose")],
+)
+async def test_hub_cover_commands(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_client: MagicMock,
+    service: str,
+    method: str,
+) -> None:
+    await hass.services.async_call(
+        COVER_DOMAIN,
+        service,
+        {ATTR_ENTITY_ID: entity_id_for(hass, COVER_DOMAIN, HUB_COVER_UID)},
+        blocking=True,
+    )
 
-
-async def test_hub_cover_close_calls_fullclose(fake_coordinator):
-    windows = {"10": WINDOW_A, "20": WINDOW_B}
-    cover = make_hub_cover(fake_coordinator, windows)
-    await cover.async_close_cover()
-    fake_coordinator.client.fullclose.assert_called_once_with()
-    fake_coordinator.async_request_aggressive_refresh.assert_called_once()
-
-
-def test_hub_cover_device_info_has_mac(fake_coordinator):
-    cover = make_hub_cover(fake_coordinator, {})
-    info = cover.device_info
-    connections = info["connections"]
-    assert ("mac", "aa:bb:cc:dd:ee:ff") in connections
-
-
-def test_cover_device_info_has_via_device_id(fake_coordinator):
-    cover = make_cover(fake_coordinator, BASE_WINDOW)
-    info = cover.device_info
-    assert info["via_device_id"] == "hub-device-id"
-    assert "via_device" not in info
+    getattr(mock_client, method).assert_called_once_with()

@@ -6,11 +6,14 @@ PIP := $(VENV)/bin/pip
 
 all: lint format-check test
 
-$(VENV)/bin/activate:
-	python3 -m venv $(VENV)
-	$(PIP) install --quiet ruff pytest pytest-asyncio
+PYTHON_VERSION ?= python3.14
 
-setup: $(VENV)/bin/activate
+$(VENV)/.installed: requirements_test.txt
+	test -x $(PYTHON) || $(PYTHON_VERSION) -m venv $(VENV)
+	$(PIP) install --quiet -r requirements_test.txt
+	touch $@
+
+setup: $(VENV)/.installed
 
 lint: setup
 	$(VENV)/bin/ruff check custom_components/ tests/

@@ -1,0 +1,5 @@
+# Keep homeassistant and pytest-homeassistant on the same version.
+homeassistant==2026.11.2
+pytest-homeassistant==2026.11.2
+pynormanshutters @ git+https://github.com/tomwilkie/pynormanshutters@v0.1.4
+ruff>=0.4
