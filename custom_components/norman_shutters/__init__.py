@@ -2,7 +2,6 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
 from .const import (
@@ -14,7 +13,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import NormanCoordinator
-from .entity import hub_device_kwargs
+from .entity import hub_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,19 +34,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         config_entry=entry,
     )
 
-    try:
-        await coordinator._async_setup()
-    except Exception as err:
-        raise ConfigEntryNotReady(
-            f"Cannot connect to Norman Hub at {entry.data[CONF_HOST]}: {err}"
-        ) from err
-
+    # Logs in via coordinator._async_setup(); raises ConfigEntryNotReady on failure.
     await coordinator.async_config_entry_first_refresh()
 
     # Register the hub before the platforms so window devices can link to it
     # by device ID (via_device_id).
-    hub_device = dr.async_get(hass).async_get_or_create(
-        config_entry_id=entry.entry_id, **hub_device_kwargs(coordinator)
+    hub_device = dr.async_get(hass).async_get_or_create_from_info(
+        config_entry_id=entry.entry_id, device_info=hub_device_info(coordinator)
     )
     coordinator.hub_device_id = hub_device.id
 

@@ -8,6 +8,12 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from pynormanshutters import login
 
+try:
+    # HA 2026.12+: logs the first failure at info level instead of warning.
+    from homeassistant.helpers.update_coordinator import UpdateFailedUnreachable
+except ImportError:  # HA < 2026.12
+    UpdateFailedUnreachable = UpdateFailed
+
 from .const import (
     AGGRESSIVE_POLL_INITIAL,
     DEFAULT_SCAN_INTERVAL,
@@ -53,9 +59,7 @@ class NormanCoordinator(DataUpdateCoordinator):
         exceed the configured scan_interval, at which point normal periodic
         polling takes over.
         """
-        for unsub in self._aggressive_poll_unsubs:
-            unsub()
-        self._aggressive_poll_unsubs.clear()
+        self._cancel_aggressive_polls()
 
         await self.async_request_refresh()
 
@@ -66,6 +70,17 @@ class NormanCoordinator(DataUpdateCoordinator):
             unsub = async_call_later(self.hass, cumulative, self._backoff_refresh_callback)
             self._aggressive_poll_unsubs.append(unsub)
             delay *= 2
+
+    @callback
+    def _cancel_aggressive_polls(self) -> None:
+        for unsub in self._aggressive_poll_unsubs:
+            unsub()
+        self._aggressive_poll_unsubs.clear()
+
+    async def async_shutdown(self) -> None:
+        """Cancel pending backoff polls as well as the regular schedule."""
+        self._cancel_aggressive_polls()
+        await super().async_shutdown()
 
     @callback
     def _backoff_refresh_callback(self, _now) -> None:
@@ -110,7 +125,9 @@ class NormanCoordinator(DataUpdateCoordinator):
                 last_err = str(err)
 
             if elapsed >= RETRY_DEADLINE:
-                raise UpdateFailed(f"Norman Hub unreachable after {int(elapsed)}s: {last_err}")
+                raise UpdateFailedUnreachable(
+                    f"Norman Hub unreachable after {int(elapsed)}s: {last_err}"
+                )
 
             # Re-login before next attempt — session may have expired silently
             try:

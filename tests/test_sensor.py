@@ -1,190 +1,72 @@
-from custom_components.norman_shutters.sensor import (
-    NormanBatterySensor,
-    NormanConnectedWindowsSensor,
-    NormanRssiSensor,
-    NormanTemperatureSensor,
+from unittest.mock import MagicMock
+
+import pytest
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
+from homeassistant.core import HomeAssistant
+from pytest_homeassistant.common import MockConfigEntry
+
+from custom_components.norman_shutters.const import DOMAIN
+
+from .conftest import MAC, WINDOW_A, WINDOW_B, entity_id_for
+
+WINDOW_ID = str(WINDOW_A["Id"])
+
+
+@pytest.mark.parametrize(
+    ("suffix", "name", "value", "unit", "device_class"),
+    [
+        ("battery", "Right Window 1 Battery", "57", "%", "battery"),
+        ("temperature", "Right Window 1 Temperature", "17", "°C", "temperature"),
+        ("rssi", "Right Window 1 Signal Strength", "67", "dBm", "signal_strength"),
+    ],
 )
-
-BASE_WINDOW = {
-    "Id": 42,
-    "Name": "Bedroom",
-    "position": 50,
-    "battery": "75",
-    "temp": 17,
-    "Rssi": 67,
-}
-
-
-def make_sensor(coordinator, window_data):
-    coordinator.data = {"42": window_data}
-    return NormanBatterySensor(coordinator, "42")
-
-
-def make_temperature_sensor(coordinator, window_data):
-    coordinator.data = {"42": window_data}
-    return NormanTemperatureSensor(coordinator, "42")
-
-
-def make_rssi_sensor(coordinator, window_data):
-    coordinator.data = {"42": window_data}
-    return NormanRssiSensor(coordinator, "42")
-
-
-# ---------------------------------------------------------------------------
-# NormanBatterySensor — name
-# ---------------------------------------------------------------------------
-
-
-def test_battery_name(fake_coordinator):
-    sensor = make_sensor(fake_coordinator, BASE_WINDOW)
-    assert sensor._attr_name == "Battery"
-    assert sensor._attr_has_entity_name is True
-
-
-# ---------------------------------------------------------------------------
-# NormanBatterySensor — native_value
-# ---------------------------------------------------------------------------
-
-
-def test_native_value_string(fake_coordinator):
-    sensor = make_sensor(fake_coordinator, {**BASE_WINDOW, "battery": "57"})
-    assert sensor.native_value == 57
-
-
-def test_native_value_int(fake_coordinator):
-    sensor = make_sensor(fake_coordinator, {**BASE_WINDOW, "battery": 80})
-    assert sensor.native_value == 80
-
-
-def test_native_value_none_when_missing(fake_coordinator):
-    data = {k: v for k, v in BASE_WINDOW.items() if k != "battery"}
-    sensor = make_sensor(fake_coordinator, data)
-    assert sensor.native_value is None
-
-
-# ---------------------------------------------------------------------------
-# NormanBatterySensor — unique_id
-# ---------------------------------------------------------------------------
-
-
-def test_unique_id(fake_coordinator):
-    sensor = make_sensor(fake_coordinator, BASE_WINDOW)
-    assert sensor._attr_unique_id == "42_battery"
-
-
-# ---------------------------------------------------------------------------
-# NormanTemperatureSensor — name
-# ---------------------------------------------------------------------------
-
-
-def test_temperature_name(fake_coordinator):
-    sensor = make_temperature_sensor(fake_coordinator, BASE_WINDOW)
-    assert sensor._attr_name == "Temperature"
-    assert sensor._attr_has_entity_name is True
-
-
-# ---------------------------------------------------------------------------
-# NormanTemperatureSensor — native_value
-# ---------------------------------------------------------------------------
-
-
-def test_temperature_native_value(fake_coordinator):
-    sensor = make_temperature_sensor(fake_coordinator, {**BASE_WINDOW, "temp": 21})
-    assert sensor.native_value == 21
-
-
-def test_temperature_native_value_none_when_missing(fake_coordinator):
-    data = {k: v for k, v in BASE_WINDOW.items() if k != "temp"}
-    sensor = make_temperature_sensor(fake_coordinator, data)
-    assert sensor.native_value is None
-
-
-# ---------------------------------------------------------------------------
-# NormanTemperatureSensor — unique_id
-# ---------------------------------------------------------------------------
-
-
-def test_temperature_unique_id(fake_coordinator):
-    sensor = make_temperature_sensor(fake_coordinator, BASE_WINDOW)
-    assert sensor._attr_unique_id == "42_temperature"
-
-
-# ---------------------------------------------------------------------------
-# NormanRssiSensor — name
-# ---------------------------------------------------------------------------
-
-
-def test_rssi_subname(fake_coordinator):
-    sensor = make_rssi_sensor(fake_coordinator, BASE_WINDOW)
-    assert sensor._attr_name == "Signal Strength"
-    assert sensor._attr_has_entity_name is True
-
-
-# ---------------------------------------------------------------------------
-# NormanRssiSensor — native_value
-# ---------------------------------------------------------------------------
-
-
-def test_rssi_native_value(fake_coordinator):
-    sensor = make_rssi_sensor(fake_coordinator, {**BASE_WINDOW, "Rssi": 55})
-    assert sensor.native_value == 55
-
-
-def test_rssi_native_value_none_when_missing(fake_coordinator):
-    data = {k: v for k, v in BASE_WINDOW.items() if k != "Rssi"}
-    sensor = make_rssi_sensor(fake_coordinator, data)
-    assert sensor.native_value is None
-
-
-# ---------------------------------------------------------------------------
-# NormanRssiSensor — unique_id
-# ---------------------------------------------------------------------------
-
-
-def test_rssi_unique_id(fake_coordinator):
-    sensor = make_rssi_sensor(fake_coordinator, BASE_WINDOW)
-    assert sensor._attr_unique_id == "42_rssi"
-
-
-# ---------------------------------------------------------------------------
-# NormanConnectedWindowsSensor
-# ---------------------------------------------------------------------------
-
-
-def test_connected_windows_name(fake_coordinator):
-    fake_coordinator.data = {}
-    sensor = NormanConnectedWindowsSensor(fake_coordinator)
-    assert sensor._attr_name == "Connected Shutters"
-
-
-def test_connected_windows_unique_id(fake_coordinator):
-    fake_coordinator.data = {}
-    sensor = NormanConnectedWindowsSensor(fake_coordinator)
-    assert sensor.unique_id == "hub_AABBCCDDEEFF_connected_shutters"
-
-
-def test_connected_windows_value(fake_coordinator):
-    fake_coordinator.data = {"42": BASE_WINDOW, "99": BASE_WINDOW}
-    sensor = NormanConnectedWindowsSensor(fake_coordinator)
-    assert sensor.native_value == 2
-
-
-def test_connected_windows_value_empty(fake_coordinator):
-    fake_coordinator.data = {}
-    sensor = NormanConnectedWindowsSensor(fake_coordinator)
-    assert sensor.native_value == 0
-
-
-def test_connected_windows_device_info_has_mac(fake_coordinator):
-    fake_coordinator.data = {}
-    sensor = NormanConnectedWindowsSensor(fake_coordinator)
-    info = sensor.device_info
-    connections = info["connections"]
-    assert ("mac", "aa:bb:cc:dd:ee:ff") in connections
-
-
-def test_window_sensor_device_info_has_via_device_id(fake_coordinator):
-    sensor = make_sensor(fake_coordinator, BASE_WINDOW)
-    info = sensor.device_info
-    assert info["via_device_id"] == "hub-device-id"
-    assert "via_device" not in info
+async def test_window_sensors(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    suffix: str,
+    name: str,
+    value: str,
+    unit: str,
+    device_class: str,
+) -> None:
+    state = hass.states.get(entity_id_for(hass, SENSOR_DOMAIN, f"{WINDOW_ID}_{suffix}"))
+
+    assert state.state == value
+    assert state.attributes["friendly_name"] == name
+    assert state.attributes["unit_of_measurement"] == unit
+    assert state.attributes["device_class"] == device_class
+    assert state.attributes["state_class"] == "measurement"
+
+
+async def test_connected_shutters_sensor(
+    hass: HomeAssistant, init_integration: MockConfigEntry
+) -> None:
+    state = hass.states.get(entity_id_for(hass, SENSOR_DOMAIN, f"hub_{MAC}_connected_shutters"))
+
+    assert state.state == "2"
+    assert state.attributes["friendly_name"] == "Norman Hub Connected Shutters"
+
+
+async def test_sensors_unknown_when_fields_missing(
+    hass: HomeAssistant, init_integration: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    window = {k: v for k, v in WINDOW_A.items() if k not in ("battery", "temp", "Rssi")}
+    mock_client.get_window_info.return_value = {"windows": [window, dict(WINDOW_B)]}
+    await hass.data[DOMAIN][init_integration.entry_id].async_refresh()
+    await hass.async_block_till_done()
+
+    for suffix in ("battery", "temperature", "rssi"):
+        entity_id = entity_id_for(hass, SENSOR_DOMAIN, f"{WINDOW_ID}_{suffix}")
+        assert hass.states.get(entity_id).state == "unknown"
+
+
+async def test_battery_accepts_int(
+    hass: HomeAssistant, init_integration: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    mock_client.get_window_info.return_value = {"windows": [{**WINDOW_A, "battery": 80}]}
+    await hass.data[DOMAIN][init_integration.entry_id].async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get(entity_id_for(hass, SENSOR_DOMAIN, f"{WINDOW_ID}_battery")).state == (
+        "80"
+    )
